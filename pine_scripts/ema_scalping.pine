@@ -1,0 +1,4 @@
+//@version=5
+indicator("9 EMA for Scalping", overlay=true)
+ema9 = ta.ema(close, 9)
+plot(ema9, color=color.blue)
