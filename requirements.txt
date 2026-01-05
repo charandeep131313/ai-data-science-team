@@ -15,7 +15,5 @@ scikit-learn
 xgboost
 psutil
 streamlit-flow-component
-langchain_core
-IPython
 yfinance
 pandas-ta

@@ -4,7 +4,7 @@ This document provides instructions on how to use the custom Pine Script indicat
 
 ## Bull Flag Indicator
 
-The `bull_flag_indicator.pine` script is designed to detect bull flag patterns on your chart.
+The `bull_flag_indicator.pine` script is designed to detect bull flag patterns on your chart using an expert approach that includes volume analysis and breakout confirmation.
 
 ### How to Use
 
@@ -26,7 +26,8 @@ The `bull_flag_indicator.pine` script is designed to detect bull flag patterns o
     *   Click the **"Add to Chart"** button located above the Pine Editor. The script will be compiled and applied to your chart.
 
 6.  **View the Signals**:
-    *   The script will now run on your chart. When a bull flag pattern is detected, a green "Bull Flag" label will appear below the corresponding bar.
+    *   The script will now run on your chart. When a bull flag pattern is detected and confirmed with a breakout, a green "Bull Flag" label will appear below the corresponding bar.
+    *   The script will also draw red and blue circles to indicate the upper and lower boundaries of the flag consolidation.
 
 ### Customization
 
@@ -37,3 +38,5 @@ You can customize the indicator's parameters by clicking the **Settings** icon n
 *   **Flag Bars**: The number of bars to consider for the flag.
 *   **ATR Multiplier**: The multiplier used to determine the steepness of the flagpole.
 *   **Risk/Reward Ratio**: The desired risk-to-reward ratio for trade signals.
+*   **Volume Lookback**: The lookback period for calculating the average volume.
+*   **Volume Multiplier**: The multiplier used to confirm a volume surge during the flagpole's formation.
