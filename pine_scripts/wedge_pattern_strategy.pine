@@ -1,0 +1,138 @@
+//@version=5
+strategy("Wedge Pattern Strategy (Filters)", overlay=true, pyramiding=0)
+
+// ======== INPUTS ========
+// --- Pattern Detection ---
+pivotLeft = input.int(10, title="Pivot Lookback Left", group="Pattern Detection")
+pivotRight = input.int(10, title="Pivot Lookback Right", group="Pattern Detection")
+minTouches = input.int(2, title="Minimum Pivot Touches", group="Pattern Detection")
+
+// --- Trade Management ---
+sl_percent = input.float(2.0, title="Stop Loss (%)", group="Trade Management") / 100
+
+// --- Confirmation Filters ---
+useTrendFilter = input.bool(true, title="Enable Trend Filter", group="Confirmation Filters")
+emaLength = input.int(200, title="EMA Length", group="Confirmation Filters")
+useVolumeFilter = input.bool(true, title="Enable Volume Filter", group="Confirmation Filters")
+volumeFactor = input.float(1.5, title="Volume Factor (e.g., 1.5 = 150%)", group="Confirmation Filters")
+volumeLookback = input.int(20, title="Volume Lookback", group="Confirmation Filters")
+
+
+// ======== PIVOT STORAGE ========
+var float[] pivotHighs = array.new_float(50)
+var int[] pivotHighBars = array.new_int(50)
+var float[] pivotLows = array.new_float(50)
+var int[] pivotLowBars = array.new_int(50)
+
+// Detect and store new pivots
+ph = ta.pivothigh(high, pivotLeft, pivotRight)
+if not na(ph)
+    array.unshift(pivotHighs, ph)
+    array.unshift(pivotHighBars, bar_index - pivotRight)
+    array.pop(pivotHighs)
+    array.pop(pivotHighBars)
+
+pl = ta.pivotlow(low, pivotLeft, pivotRight)
+if not na(pl)
+    array.unshift(pivotLows, pl)
+    array.unshift(pivotLowBars, bar_index - pivotRight)
+    array.pop(pivotLows)
+    array.pop(pivotLowBars)
+
+// ======== STATE MANAGEMENT & PATTERN LOCKING ========
+var int pattern_state = 0 // 0=Searching, 1=Rising Wedge, 2=Falling Wedge
+var int h1_bar = na, h2_bar = na, l1_bar = na, l2_bar = na
+var float h1_price = na, h2_price = na, l1_price = na, l2_price = na
+var line upperTrendline = na
+var line lowerTrendline = na
+
+// ======== HELPER FUNCTION ========
+f_get_price_at(bar, x1, y1, x2, y2) =>
+    if x2 == x1
+        na
+    else
+        slope = (y2 - y1) / (x2 - x1)
+        y1 + slope * (bar - x1)
+
+// ======== FILTER CALCULATIONS ========
+ema = ta.ema(close, emaLength)
+avgVolume = ta.sma(volume, volumeLookback)
+plot(ema, "EMA", color=color.orange, display=display.all)
+
+
+// ======== PATTERN DETECTION (ONLY WHEN SEARCHING) ========
+if pattern_state == 0
+    p_h1_bar = array.get(pivotHighBars, 0); p_h1_price = array.get(pivotHighs, 0)
+    p_h2_bar = array.get(pivotHighBars, 1); p_h2_price = array.get(pivotHighs, 1)
+    p_l1_bar = array.get(pivotLowBars, 0); p_l1_price = array.get(pivotLows, 0)
+    p_l2_bar = array.get(pivotLowBars, 1); p_l2_price = array.get(pivotLows, 1)
+
+    if not na(p_h2_bar) and not na(p_l2_bar) and p_h1_bar > p_h2_bar and p_l1_bar > p_l2_bar
+        slope_h = (p_h1_price - p_h2_price) / (p_h1_bar - p_h2_bar)
+        slope_l = (p_l1_price - p_l2_price) / (p_l1_bar - p_l2_bar)
+
+        if f_get_price_at(bar_index, p_h1_bar, p_h1_price, p_h2_bar, p_h2_price) > f_get_price_at(bar_index, p_l1_bar, p_l1_price, p_l2_bar, p_l2_price)
+            // DETECT FALLING WEDGE (Bullish)
+            if slope_h < 0 and slope_l < 0 and slope_h < slope_l
+                pattern_state := 2
+                h1_bar := p_h1_bar; h1_price := p_h1_price; h2_bar := p_h2_bar; h2_price := p_h2_price
+                l1_bar := p_l1_bar; l1_price := p_l1_price; l2_bar := p_l2_bar; l2_price := p_l2_price
+                upperTrendline := line.new(h2_bar, h2_price, h1_bar, h1_price, color=color.new(color.blue, 0), width=2)
+                lowerTrendline := line.new(l2_bar, l2_price, l1_bar, l1_price, color=color.new(color.blue, 0), width=2)
+
+            // DETECT RISING WEDGE (Bearish)
+            if slope_h > 0 and slope_l > 0 and slope_h < slope_l
+                pattern_state := 1
+                h1_bar := p_h1_bar; h1_price := p_h1_price; h2_bar := p_h2_bar; h2_price := p_h2_price
+                l1_bar := p_l1_bar; l1_price := p_l1_price; l2_bar := p_l2_bar; l2_price := p_l2_price
+                upperTrendline := line.new(h2_bar, h2_price, h1_bar, h1_price, color=color.new(color.red, 0), width=2)
+                lowerTrendline := line.new(l2_bar, l2_price, l1_bar, l1_price, color=color.new(color.red, 0), width=2)
+
+// ======== ACTIVE PATTERN MANAGEMENT ========
+if pattern_state != 0
+    upper_val = f_get_price_at(bar_index, h1_bar, h1_price, h2_bar, h2_price)
+    lower_val = f_get_price_at(bar_index, l1_bar, l1_price, l2_bar, l2_price)
+
+    line.set_x2(upperTrendline, bar_index); line.set_x2(lowerTrendline, bar_index)
+
+    // --- Filter Conditions ---
+    trendFilterLongOK = not useTrendFilter or close > ema
+    trendFilterShortOK = not useTrendFilter or close < ema
+    volumeFilterOK = not useVolumeFilter or volume > avgVolume * volumeFactor
+
+    // --- Invalidation & Breakout Logic ---
+    reset_pattern = false
+    // If Falling Wedge is active
+    if pattern_state == 2
+        if ta.crossover(close, upper_val) and strategy.opentrades == 0 and trendFilterLongOK and volumeFilterOK
+            strategy.entry("Long", strategy.long)
+            reset_pattern := true
+        else if ta.crossunder(close, lower_val)
+            reset_pattern := true
+
+    // If Rising Wedge is active
+    if pattern_state == 1
+        if ta.crossunder(close, lower_val) and strategy.opentrades == 0 and trendFilterShortOK and volumeFilterOK
+            strategy.entry("Short", strategy.short)
+            reset_pattern := true
+        else if ta.crossover(close, upper_val)
+            reset_pattern := true
+
+    if reset_pattern
+        line.delete(upperTrendline); line.delete(lowerTrendline)
+        pattern_state := 0
+
+// ======== STOP LOSS ========
+long_sl_price = strategy.position_avg_price * (1 - sl_percent)
+short_sl_price = strategy.position_avg_price * (1 + sl_percent)
+
+if strategy.position_size > 0
+    strategy.exit("SL", from_entry="Long", stop=long_sl_price)
+if strategy.position_size < 0
+    strategy.exit("SL", from_entry="Short", stop=short_sl_price)
+
+// ======== CLEANUP ========
+if (pattern_state == 1 and strategy.position_size > 0) or (pattern_state == 2 and strategy.position_size < 0)
+    strategy.close_all()
+    line.delete(upperTrendline); line.delete(lowerTrendline)
+    pattern_state := 0
