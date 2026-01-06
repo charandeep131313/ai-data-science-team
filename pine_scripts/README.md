@@ -13,3 +13,4 @@ This Pine Script implements an intraday strategy that identifies rising trend li
 
 *   **Risk/Reward Ratio:** Determines the take-profit level relative to the stop-loss. For example, a value of 2.0 sets the take-profit at twice the distance of the stop-loss from the entry price.
 *   **Lookback Period for Swings:** The number of bars to look back to identify swing lows. These swings are used to draw the trend lines.
+*   **Proximity Zone (%):** A percentage-based zone above the trend line. A trade can be initiated if the price enters this zone, allowing for more trades than a strict touch of the trend line.

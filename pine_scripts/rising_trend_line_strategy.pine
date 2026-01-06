@@ -4,6 +4,7 @@ strategy("Rising Trend Line Strategy", overlay=true)
 // User-configurable inputs
 riskRewardRatio = input.float(2.0, title="Risk/Reward Ratio")
 lookback = input.int(10, title="Lookback Period for Swings")
+proximityPercent = input.float(0.5, title="Proximity Zone (%)", step=0.1)
 
 // Swing detection
 swingLow = ta.pivotlow(low, lookback, lookback)
@@ -32,8 +33,11 @@ if not na(swingLow)
 if not na(trendLine)
     trendLinePrice = line.get_price(trendLine, bar_index)
 
-    // Entry condition: Price touches the trend line and closes above it
-    if ta.crossunder(low, trendLinePrice) and close > trendLinePrice and strategy.position_size == 0
+    // Calculate proximity zone
+    upperZone = trendLinePrice * (1 + proximityPercent / 100)
+
+    // Entry condition: Price enters the proximity zone or touches the trend line, and closes above it
+    if ((low <= upperZone and low > trendLinePrice) or ta.crossunder(low, trendLinePrice)) and close > trendLinePrice and strategy.position_size == 0
         stopLoss = low - syminfo.mintick * 10
         takeProfit = close + (close - stopLoss) * riskRewardRatio
 
