@@ -1,0 +1,45 @@
+// @version=5
+indicator("Bull Flag Pattern", overlay=true)
+
+// User Inputs
+atr_length = input.int(14, title="ATR Length")
+flagpole_bars = input.int(5, title="Flagpole Bars")
+flag_bars = input.int(15, title="Flag Bars")
+atr_multiplier = input.float(3.0, title="ATR Multiplier")
+risk_reward_ratio = input.float(2.0, title="Risk/Reward Ratio")
+volume_lookback = input.int(20, title="Volume Lookback")
+volume_multiplier = input.float(1.5, title="Volume Multiplier")
+
+// Calculate ATR
+atr = ta.atr(atr_length)
+avg_volume = ta.sma(volume, volume_lookback)
+
+// Flagpole detection
+flagpole_start_low = ta.lowest(low, flagpole_bars)[flag_bars]
+flagpole_end_high = ta.highest(high, flagpole_bars)[flag_bars]
+flagpole_height = flagpole_end_high - flagpole_start_low
+flagpole_volume_surge = ta.highest(volume, flagpole_bars)[flag_bars] > avg_volume[flag_bars] * volume_multiplier
+flagpole_is_steep = flagpole_height > atr[flag_bars] * atr_multiplier and flagpole_volume_surge
+
+// Flag consolidation detection
+flag_high = ta.highest(high, flag_bars)
+flag_low = ta.lowest(low, flag_bars)
+flag_volume_declining = ta.lowest(volume, flag_bars) < avg_volume
+flag_slope = ta.linreg(close, flag_bars, 0)
+flag_is_consolidating = (flag_high - flag_low) < flagpole_height * 0.5 and flag_volume_declining and flag_slope < 0
+
+// Breakout Confirmation
+breakout = ta.cross(close, flag_high)
+
+// Risk/Reward Calculation
+entry_price = flag_high
+stop_loss = flag_low
+take_profit = entry_price + (entry_price - stop_loss) * risk_reward_ratio
+
+// Plotting
+is_bull_flag = flagpole_is_steep and flag_is_consolidating and breakout
+plotshape(is_bull_flag, style=shape.labelup, location=location.belowbar, color=color.green, size=size.small, text="Bull Flag")
+
+// Draw flag boundaries
+plot(flag_high, color=color.new(color.red, 50), style=plot.style_circles)
+plot(flag_low, color=color.new(color.blue, 50), style=plot.style_circles)
