@@ -1,0 +1,29 @@
+//@version=5
+strategy("9/21 EMA Scalping Strategy", shorttitle="9/21 EMA Scalp", overlay=true)
+
+// -- Inputs --
+ema9_length = input.int(9, title="9 EMA Length")
+ema21_length = input.int(21, title="21 EMA Length")
+stop_loss_pct = input.float(1.0, title="Stop Loss %") / 100
+take_profit_pct = input.float(2.0, title="Take Profit %") / 100
+
+// -- EMAs --
+ema9 = ta.ema(close, ema9_length)
+ema21 = ta.ema(close, ema21_length)
+
+// -- Strategy Logic --
+long_condition = ta.crossover(close, ema9) and ema9 > ema21
+short_condition = ta.crossunder(close, ema9) and ema9 < ema21
+
+// -- Trade Execution --
+if (long_condition)
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Exit Long", from_entry="Long", loss=close * stop_loss_pct / syminfo.mintick, profit=close * take_profit_pct / syminfo.mintick)
+
+if (short_condition)
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Exit Short", from_entry="Short", loss=close * stop_loss_pct / syminfo.mintick, profit=close * take_profit_pct / syminfo.mintick)
+
+// -- Plotting --
+plot(ema9, color=color.blue, title="9 EMA")
+plot(ema21, color=color.orange, title="21 EMA")
