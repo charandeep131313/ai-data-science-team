@@ -1,0 +1,45 @@
+//@version=5
+strategy("Rising Trend Line Strategy", overlay=true)
+
+// User-configurable inputs
+riskRewardRatio = input.float(2.0, title="Risk/Reward Ratio")
+lookback = input.int(10, title="Lookback Period for Swings")
+proximityPercent = input.float(0.5, title="Proximity Zone (%)", step=0.1)
+
+// Swing detection
+swingLow = ta.pivotlow(low, lookback, lookback)
+
+// Trend line logic
+varip line trendLine = na
+varip float p1_price = na
+varip int p1_bar = na
+varip float p2_price = na
+varip int p2_bar = na
+
+if not na(swingLow)
+    p1_price := p2_price
+    p1_bar   := p2_bar
+    p2_price := swingLow
+    p2_bar   := bar_index
+
+    if not na(p1_price)
+        if na(trendLine)
+            trendLine := line.new(p1_bar, p1_price, p2_bar, p2_price, extend=extend.right, color=color.lime, width=2)
+        else
+            line.set_xy1(trendLine, p1_bar, p1_price)
+            line.set_xy2(trendLine, p2_bar, p2_price)
+
+// Entry and exit conditions
+if not na(trendLine)
+    trendLinePrice = line.get_price(trendLine, bar_index)
+
+    // Calculate proximity zone
+    upperZone = trendLinePrice * (1 + proximityPercent / 100)
+
+    // Entry condition: Price enters the proximity zone or touches the trend line, and closes above it
+    if ((low <= upperZone and low > trendLinePrice) or ta.crossunder(low, trendLinePrice)) and close > trendLinePrice and strategy.position_size == 0
+        stopLoss = low - syminfo.mintick * 10
+        takeProfit = close + (close - stopLoss) * riskRewardRatio
+
+        strategy.entry("Long", strategy.long)
+        strategy.exit("Exit", "Long", stop=stopLoss, limit=takeProfit)
